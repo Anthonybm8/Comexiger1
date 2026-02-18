@@ -1,0 +1,10 @@
+Django
+djangorestframework
+channels
+django-cors-headers
+python-decouple
+PyMySQL
+requests
+urllib3
+openpyxl
+PyJWT

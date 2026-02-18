@@ -1,0 +1,692 @@
+{% extends 'plantilla.html' %}
+{% load static %}
+{% block body %}
+
+<main class="container-fluid py-3">
+  <h1 class="text-center">Listado de Rendimiento</h1>
+  <hr>
+  <div class="card p-3 mb-4">
+    <div class="row g-3">
+
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Ordenar por</label>
+        <select id="ordenarPor" class="form-select">
+          <option value="">-- Seleccionar --</option>
+          <option value="mesa">Mesa</option>
+          <option value="fecha">Fecha</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Mostrar</label>
+        <select id="ordenReciente" class="form-select">
+          <option value="">-- Seleccionar --</option>
+          <option value="true">Más recientes primero</option>
+          <option value="false">Más antiguos primero</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Fecha exacta</label>
+        <input type="date" id="fechaExacta" class="form-control">
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Desde</label>
+        <input type="date" id="fechaDesde" class="form-control">
+      </div>
+
+      <div class="col-md-3 mt-3">
+        <label class="form-label fw-bold">Hasta</label>
+        <input type="date" id="fechaHasta" class="form-control">
+      </div>
+
+      <div class="col-md-3 mt-4">
+        <button id="btnAplicarFiltros" type="button" class="btn btn-primary w-100">
+          <i class="fa fa-filter"></i> Aplicar filtros
+        </button>
+      </div>
+
+      <div class="col-md-3 mt-4">
+        <button id="btnLimpiarFiltros" type="button" class="btn btn-secondary w-100">
+          <i class="fa fa-eraser"></i> Limpiar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <table id="table_rendimiento" class="table table-hover align-middle w-100 tabla-comexiger">
+    <thead>
+      <tr class="table-success">
+        <th style="display:none;">Fecha Key</th>
+        <th>ID</th>
+        <th>Mesa</th>
+        <th>Fecha</th>
+        <th>Rendimiento</th>
+        <th>Inicio</th>
+        <th>Final</th>
+        <th>Horas</th>
+        <th style="display:none;">Base</th>
+        <th>Ramos Base</th>
+        <th>Ramos realizados</th>
+        <th>Extras</th>
+        <th>Ext/Hora</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for r in rendimiento %}
+      <tr>
+        <td style="display:none;">{{ r.fecha_entrada|date:"Y-m-d" }}</td>
+
+        <td>{{ r.id }}</td>
+        <td>{{ r.numero_mesa }}</td>
+        <td>{{ r.fecha_entrada|date:"d \\d\\e F \\d\\e Y H:i" }}</td>
+
+        <td>{% if r.rendimiento %}{{ r.rendimiento }}{% else %}20{% endif %}</td>
+
+        <td>{% if r.hora_inicio %}{{ r.hora_inicio|date:"H:i" }}{% else %}-{% endif %}</td>
+        <td>{% if r.hora_final %}{{ r.hora_final|date:"H:i" }}{% else %}-{% endif %}</td>
+
+        <td>{{ r.horas_trabajadas|default_if_none:"-" }}</td>
+        <td style="display:none;">{{ r.ramos_base|default_if_none:"-" }}</td>
+        <td>{{ r.ramos_esperados|default_if_none:"-" }}</td>
+        <td>{{ r.bonches|default:"0" }}</td>
+        <td>{{ r.ramos_extras|default_if_none:"-" }}</td>
+        <td>{{ r.extras_por_hora|default_if_none:"-" }}</td>
+
+        <td>
+          <button
+            type="button"
+            class="btn btn-outline-warning btn-editar"
+            data-bs-toggle="modal"
+            data-bs-target="#modalEditarGlobal"
+            data-id="{{ r.id }}"
+            data-mesa="{{ r.numero_mesa }}"
+            data-fecha="{{ r.fecha_entrada|date:'Y-m-d\\TH:i' }}"
+            data-inicio="{% if r.hora_inicio %}{{ r.hora_inicio|date:'Y-m-d\\TH:i' }}{% endif %}"
+            data-final="{% if r.hora_final %}{{ r.hora_final|date:'Y-m-d\\TH:i' }}{% endif %}"
+            data-bonches="{{ r.bonches|default:'0' }}"
+            data-rendimiento="{% if r.rendimiento %}{{ r.rendimiento }}{% else %}20{% endif %}">
+            <i class="fa fa-pen"></i>
+          </button>
+
+          <a href="{% url 'eliminar_rendimiento' r.id %}"
+             class="btn btn-outline-danger btn-eliminar"
+             data-id="{{ r.id }}"
+             data-nombre="Mesa {{ r.numero_mesa }} - {{ r.fecha_entrada|date:'d/m/Y H:i' }}">
+            <i class="fa fa-trash"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="modal fade" id="modalEditarGlobal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title">Editar Rendimiento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <form action="{% url 'procesar_edicion_rendimiento' %}" method="post" id="form_editar_rendimiento" novalidate>
+            {% csrf_token %}
+
+            <input type="hidden" name="id" id="edit_id">
+
+            <label>Número de Mesa</label>
+            <input class="form-control" type="number" name="numero_mesa" id="edit_mesa" required><br>
+
+            <label>Rendimiento</label>
+            <input class="form-control" type="number" name="rendimiento" id="edit_rendimiento" readonly disabled><br>
+
+            <label>Inicio</label>
+            <input class="form-control" type="datetime-local" name="hora_inicio" id="edit_inicio"><br>
+
+            <label>Final</label>
+            <input class="form-control" type="datetime-local" name="hora_final" id="edit_final"><br>
+
+            <label>Reales (Bonches)</label>
+            <input class="form-control" type="number" name="bonches" id="edit_bonches"><br>
+
+            <label>Fecha de Entrada</label>
+            <input class="form-control" type="datetime-local" name="fecha_entrada" id="edit_fecha" required><br>
+
+            <div class="d-flex justify-content-end">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                <i class="fa fa-times me-1"></i> Cancelar
+              </button>
+              <button type="submit" class="btn btn-success ms-2">
+                <i class="fa fa-save me-1"></i> Guardar Cambios
+              </button>
+            </div>
+
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
+<script>
+  // =======================
+  // SWEETALERT ELIMINAR
+  // =======================
+  $(document).on('click', '.btn-eliminar', function(e){
+    e.preventDefault();
+
+    const url = $(this).attr('href');
+    const nombre = $(this).data('nombre') || 'este rendimiento';
+
+    alertaConfirmar({
+      titulo: "¿Eliminar rendimiento?",
+      html: `Vas a eliminar el registro de <b>${nombre}</b><br><span class="text-muted">Esta acción no se puede deshacer</span>`,
+      confirmText: "<i class='fas fa-trash me-2'></i>Eliminar",
+      cancelText: "<i class='fas fa-times me-2'></i>Cancelar",
+      confirmColor: "#dc3545"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        alertaCargando("Eliminando...", "Por favor espera");
+        window.location.href = url;
+      }
+    });
+
+
+  });
+
+  // =======================
+  // HELPERS
+  // =======================
+  function toDateKey(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return String(value).slice(0, 10);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  function toDateTimeLocal(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${y}-${m}-${day}T${hh}:${mm}`;
+  }
+
+  function formatearFechaLarga(iso) {
+    if (!iso) return "-";
+    const fecha = new Date(iso);
+    const opciones = { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" };
+    return fecha.toLocaleString("es-EC", opciones).replace(" 0", " ").replace(",", "");
+  }
+
+  function soloHora(value) {
+    if (!value) return "-";
+    if (typeof value === "string" && value.includes(":") && !value.includes("T")) return value.slice(0, 5);
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return String(value).slice(0, 5);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  function accionesHTML(data) {
+    const id = data.id;
+    const mesa = data.numero_mesa;
+    const fechaISO = data.fecha_entrada;
+    const rendimientoBase =
+      (data.rendimiento !== null && data.rendimiento !== undefined && data.rendimiento !== "")
+        ? data.rendimiento
+        : 20;
+
+    return `
+      <button
+        type="button"
+        class="btn btn-outline-warning btn-editar"
+        data-bs-toggle="modal"
+        data-bs-target="#modalEditarGlobal"
+        data-id="${id}"
+        data-mesa="${mesa}"
+        data-fecha="${toDateTimeLocal(fechaISO)}"
+        data-inicio="${toDateTimeLocal(data.hora_inicio)}"
+        data-final="${toDateTimeLocal(data.hora_final)}"
+        data-bonches="${data.bonches ?? 0}"
+        data-rendimiento="${rendimientoBase}">
+        <i class="fa fa-pen"></i>
+      </button>
+
+      <a href="/eliminar_rendimiento/${id}"
+         class="btn btn-outline-danger btn-eliminar"
+         data-id="${id}"
+         data-nombre="Mesa ${mesa} - ${new Date(fechaISO).toLocaleString('es-EC', {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}">
+        <i class="fa fa-trash"></i>
+      </a>
+    `;
+  }
+
+  let table;
+
+  $(document).ready(function() {
+
+    // =======================
+    // DATATABLE
+    // =======================
+    const exportFormatBody = function (data) {
+      return $("<div>").html(data).text().trim().replace(/\u00a0/g, " ");
+    };
+
+    const normalizeEsNumberForExcel = function (value) {
+      let text = String(value ?? "").trim().replace(/\u00a0/g, "").replace(/\s+/g, "");
+      if (!text) return text;
+
+      // 1.234,56 -> 1234.56
+      if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(text)) {
+        return text.replace(/\./g, "").replace(",", ".");
+      }
+      // 14,16 -> 14.16
+      if (/^-?\d+,\d+$/.test(text)) {
+        return text.replace(",", ".");
+      }
+      // 1,234.56 -> 1234.56
+      if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(text)) {
+        return text.replace(/,/g, "");
+      }
+      return text;
+    };
+
+    const exportFormatBodyExcel = function (data) {
+      const text = exportFormatBody(data);
+      return normalizeEsNumberForExcel(text);
+    };
+
+    const exportColumns = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12];
+
+    table = $('#table_rendimiento').DataTable({
+      order: [],
+      ordering: false,
+
+      responsive: {
+        details: {
+          display: $.fn.dataTable.Responsive.display.modal({
+            header: function (row) {
+              const data = row.data();
+              return `Detalle - Mesa ${data[2]} (ID ${data[1]})`;
+            }
+          }),
+          renderer: function (api, rowIdx, columns) {
+            const data = $.map(columns, function (col) {
+              return col.hidden ? '' :
+                `<tr data-dt-row="${col.rowIndex}" data-dt-column="${col.columnIndex}">
+                  <td><b>${col.title}:</b></td>
+                  <td>${col.data}</td>
+                </tr>`;
+            }).join('');
+            return data ? $('<table class="table table-sm table-striped mb-0"/>').append(data) : false;
+          }
+        }
+      },
+
+      dom: 'lBfrtip',
+      buttons: [
+        {
+          extend: 'copy',
+          className: 'btn btn-secondary',
+          text: '<i class="fa fa-copy"></i> Copiar',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        },
+        {
+          extend: 'csvHtml5',
+          className: 'btn btn-dark',
+          text: '<i class="fa fa-file-csv"></i> CSV',
+          fieldSeparator: ';',
+          bom: true,
+          charset: 'utf-8',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        },
+        {
+          extend: 'excelHtml5',
+          className: 'btn btn-success',
+          text: '<i class="fa fa-file-excel"></i> Excel',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBodyExcel } }
+        },
+        {
+          extend: 'pdf',
+          className: 'btn btn-warning',
+          text: '<i class="fa fa-file-pdf"></i> PDF',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        },
+        {
+          extend: 'print',
+          className: 'btn btn-info',
+          text: '<i class="fa fa-print"></i> Imprimir',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        }
+      ],
+
+      columnDefs: [
+        { targets: [0, 8], visible: false, searchable: false },
+        { targets: [0, 8], responsivePriority: 10000 }
+      ],
+
+      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json' },
+      lengthMenu: [[5,10, 25, 50, 100, -1], [5,10, 25, 50, 100, "Todos"]],
+      pageLength: 25,
+      autoWidth: false,
+    });
+
+
+    // =======================
+    // LLENAR MODAL GLOBAL AL EDITAR
+    // =======================
+    $(document).on("click", ".btn-editar", function () {
+      const btn = $(this);
+
+      $("#edit_id").val(btn.data("id"));
+      $("#edit_mesa").val(btn.data("mesa"));
+      $("#edit_rendimiento").val(btn.data("rendimiento") ?? 20);
+      $("#edit_inicio").val(btn.data("inicio") || "");
+      $("#edit_final").val(btn.data("final") || "");
+      $("#edit_bonches").val(btn.data("bonches") ?? 0);
+      $("#edit_fecha").val(btn.data("fecha") || "");
+    });
+
+    $.validator.addMethod("numbersOnly", function(value, element) {
+      return this.optional(element) || /^\d+$/.test(value);
+    }, "Solo se permiten numeros.");
+
+    $.validator.addMethod("fechaFinalMayor", function(value, element) {
+      const inicio = $("#edit_inicio").val();
+      if (!inicio || !value) return true;
+      return new Date(value).getTime() >= new Date(inicio).getTime();
+    }, "La hora final no puede ser menor que la hora de inicio.");
+
+    $("#form_editar_rendimiento").validate({
+      ignore: [],
+      rules: {
+        numero_mesa: { required: true, numbersOnly: true, min: 1, maxlength: 10 },
+        fecha_entrada: { required: true },
+        bonches: { required: true, numbersOnly: true, min: 0, maxlength: 10 },
+        hora_inicio: { required: true },
+        hora_final: { required: true, fechaFinalMayor: true }
+      },
+      messages: {
+        numero_mesa: {
+          required: "Por favor ingrese el numero de mesa.",
+          numbersOnly: "Solo se permiten numeros.",
+          min: "La mesa debe ser mayor o igual a 1.",
+          maxlength: "Maximo 10 digitos."
+        },
+        fecha_entrada: { required: "La fecha de entrada es obligatoria." },
+        bonches: {
+          required: "Por favor ingrese los bonches.",
+          numbersOnly: "Solo se permiten numeros.",
+          min: "Bonches no puede ser menor a 0.",
+          maxlength: "Maximo 10 digitos."
+        },
+        hora_inicio: { required: "La hora de inicio es obligatoria." },
+        hora_final: {
+          required: "La hora final es obligatoria."
+        }
+      },
+      errorElement: "div",
+      errorClass: "invalid-feedback d-block",
+      highlight: function (element) { $(element).addClass("is-invalid"); },
+      unhighlight: function (element) { $(element).removeClass("is-invalid"); },
+      submitHandler: function(form) { form.submit(); }
+    });
+
+    // =======================
+    // WEBSOCKET
+    // =======================
+    const wsUrl =
+      (location.protocol === "https:" ? "wss" : "ws") +
+      "://" + window.location.host + "/ws/rendimientos/";
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => console.log("✅ WS Rendimientos conectado:", wsUrl);
+
+    ws.onmessage = function(e) {
+      const payload = JSON.parse(e.data);
+      const data = payload.data ? payload.data : payload;
+
+      const incomingMesa = String(data.numero_mesa);
+      const incomingKey  = toDateKey(data.fecha_entrada);
+
+      let filaExistente = null;
+
+      table.rows().every(function() {
+        const row = this.data();
+        const rowKey  = String(row[0] || "");
+        const rowMesa = String(row[2] || "");
+        if (rowMesa === incomingMesa && rowKey === incomingKey) {
+          filaExistente = this;
+          return false;
+        }
+      });
+
+      const rendimientoBase =
+        (data.rendimiento !== null && data.rendimiento !== undefined && data.rendimiento !== "")
+          ? data.rendimiento
+          : 20;
+
+      const nuevaFila = [
+        incomingKey,                                 // 0 (oculta)
+        data.id,                                     // 1 ID
+        data.numero_mesa,                            // 2 Mesa
+        formatearFechaLarga(data.fecha_entrada),     // 3 Fecha
+        rendimientoBase,                             // 4 Rendimiento
+        soloHora(data.hora_inicio),                  // 5 Inicio
+        soloHora(data.hora_final),                   // 6 Final
+        (data.horas_trabajadas ?? "-"),              // 7 Horas
+        (data.ramos_base ?? "-"),                    // 8 Base (oculta)
+        (data.ramos_esperados ?? "-"),               // 9 Ramos Base
+        (data.bonches ?? 0),                         // 10 Ramos realizados
+        (data.ramos_extras ?? "-"),                  // 11 Extras
+        (data.extras_por_hora ?? "-"),               // 12 Ext/Hora
+        accionesHTML(data)                           // 13 Acciones (EDITAR FUNCIONA)
+      ];
+
+      if (filaExistente) filaExistente.data(nuevaFila).draw(false);
+      else table.row.add(nuevaFila).draw(false);
+    };
+
+    // =======================
+    // FILTROS (GET correcto)
+    // =======================
+    document.getElementById("btnAplicarFiltros").addEventListener("click", function () {
+      let ordenar = document.getElementById("ordenarPor").value;
+      let reciente = document.getElementById("ordenReciente").value;
+      let fecha = document.getElementById("fechaExacta").value;
+      let desde = document.getElementById("fechaDesde").value;
+      let hasta = document.getElementById("fechaHasta").value;
+
+      // Si solo eligen "reciente", por defecto ordenamos por fecha.
+      if (!ordenar && reciente) ordenar = "fecha";
+
+      // Fecha exacta tiene prioridad sobre rango.
+      if (fecha) {
+        desde = "";
+        hasta = "";
+      }
+
+      let url = "/api/rendimientos/?";
+      if (ordenar) url += `ordenar=${encodeURIComponent(ordenar)}&`;
+      if (reciente) url += `reciente=${encodeURIComponent(reciente)}&`;
+      if (fecha) url += `fecha=${encodeURIComponent(fecha)}&`;
+      if (!fecha && desde) url += `desde=${encodeURIComponent(desde)}&`;
+      if (!fecha && hasta) url += `hasta=${encodeURIComponent(hasta)}&`;
+
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          table.clear();
+          data.forEach(item => {
+            const key = toDateKey(item.fecha_entrada);
+            const rendBase =
+              (item.rendimiento !== null && item.rendimiento !== undefined && item.rendimiento !== "")
+                ? item.rendimiento
+                : 20;
+
+            table.row.add([
+              key,
+              item.id,
+              item.numero_mesa,
+              formatearFechaLarga(item.fecha_entrada),
+              rendBase,
+              soloHora(item.hora_inicio),
+              soloHora(item.hora_final),
+              (item.horas_trabajadas ?? "-"),
+              (item.ramos_base ?? "-"),
+              (item.ramos_esperados ?? "-"),
+              (item.bonches ?? 0),
+              (item.ramos_extras ?? "-"),
+              (item.extras_por_hora ?? "-"),
+              accionesHTML(item)
+            ]);
+          });
+          table.draw(false);
+        })
+        .catch(() => alertaError("No se pudieron aplicar los filtros."));
+    });
+
+    document.getElementById("btnLimpiarFiltros").addEventListener("click", function () {
+      document.getElementById("ordenarPor").value = "";
+      document.getElementById("ordenReciente").value = "";
+      document.getElementById("fechaExacta").value = "";
+      document.getElementById("fechaDesde").value = "";
+      document.getElementById("fechaHasta").value = "";
+
+      fetch("/api/rendimientos/")
+        .then(r => r.json())
+        .then(data => {
+          table.clear();
+          data.forEach(item => {
+            const key = toDateKey(item.fecha_entrada);
+            const rendBase =
+              (item.rendimiento !== null && item.rendimiento !== undefined && item.rendimiento !== "")
+                ? item.rendimiento
+                : 20;
+
+            table.row.add([
+              key,
+              item.id,
+              item.numero_mesa,
+              formatearFechaLarga(item.fecha_entrada),
+              rendBase,
+              soloHora(item.hora_inicio),
+              soloHora(item.hora_final),
+              (item.horas_trabajadas ?? "-"),
+              (item.ramos_base ?? "-"),
+              (item.ramos_esperados ?? "-"),
+              (item.bonches ?? 0),
+              (item.ramos_extras ?? "-"),
+              (item.extras_por_hora ?? "-"),
+              accionesHTML(item)
+            ]);
+          });
+          table.draw(false);
+        })
+        .catch(() => alertaError("No se pudo recargar la tabla."));
+    });
+
+  });
+</script>
+
+<style>
+  /* Fondo suave para el contenido */
+  body { background: #ECF0F5; }
+
+  /* Contenedor tabla */
+  .tabla-comexiger {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(0,0,0,.06);
+  }
+
+  /* Header elegante */
+  .tabla-comexiger thead th {
+    background: #222D32 !important;
+    color: #fff !important;
+    border-bottom: 0 !important;
+    font-weight: 700;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  /* Filas */
+  .tabla-comexiger tbody td {
+    vertical-align: middle;
+  }
+
+  /* Hover */
+  .tabla-comexiger tbody tr:hover {
+    background: rgba(34,45,50,.06) !important;
+  }
+
+  /* Botones DataTables */
+  .dt-buttons .btn {
+    border-radius: 10px !important;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+
+  /* Inputs DataTables */
+  .dataTables_filter input,
+  .dataTables_length select {
+    border-radius: 10px !important;
+    border: 1px solid rgba(34,45,50,.25) !important;
+  }
+
+  /* Paginación */
+  .pagination .page-link {
+    border-radius: 10px !important;
+  }
+  .page-item.active .page-link {
+    background: #222D32 !important;
+    border-color: #222D32 !important;
+  }
+
+  /* Tus animaciones de botones */
+  .btn-eliminar { transition: all 0.3s ease !important; }
+  .btn-eliminar:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 15px rgba(220, 53, 69, 0.25) !important;
+  }
+  .btn-outline-warning { transition: all 0.3s ease !important; }
+  .btn-outline-warning:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 15px rgba(255, 193, 7, 0.25) !important;
+  }
+  .btn-eliminar { transition: all 0.3s ease !important; }
+  .btn-eliminar:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3) !important;
+  }
+  .btn-outline-warning { transition: all 0.3s ease !important; }
+  .btn-outline-warning:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3) !important;
+  }
+</style>
+
+<br><br>
+{% endblock %}

@@ -1,0 +1,17 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/damisoft/comexiger.damisoft-ec.com"
+PassengerBaseURI "/"
+PassengerPython "/home/damisoft/virtualenv/comexiger.damisoft-ec.com/3.11/bin/python"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+<IfModule Litespeed>
+SetEnv DB_ENGINE mysql
+SetEnv DB_NAME damisoft_comexiger
+SetEnv DB_USER damisoft_comexiger
+SetEnv DB_PASSWORD Diego.1996
+SetEnv DB_HOST localhost
+SetEnv DB_PORT 3306
+SetEnv DEBUG False
+SetEnv SECRET_KEY damisoft_comexiger
+</IfModule>
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END
