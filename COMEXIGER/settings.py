@@ -154,7 +154,7 @@ USE_TZ = True
 # ==========================
 # STATIC FILES
 # ==========================
-STATIC_URL = "/static/"
+STATIC_URL = "/staticfiles/"
 
 # Donde están tus estáticos en desarrollo
 STATICFILES_DIRS = [
